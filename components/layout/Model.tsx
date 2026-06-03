@@ -36,7 +36,7 @@ const Model = () => {
 
         {/* OrbitControls allows the user to rotate, zoom, and pan the model */}
         <OrbitControls
-          enableZoom={true}
+          enableZoom={false}
           maxPolarAngle={Math.PI / 2} // Keeps the camera above the ground
           minDistance={4}
           maxDistance={5}
