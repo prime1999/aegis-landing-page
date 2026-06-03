@@ -1,16 +1,55 @@
 "use client";
 
-import React, { Suspense } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF, Center } from "@react-three/drei";
+import { Suspense, useRef, useEffect } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { useGLTF, Center } from "@react-three/drei";
+import * as THREE from "three";
 
-// 1. Create a component for the 3D Model
+// A global mutable object to track screen-wide normalized coordinates
+const globalMouse = { x: 0, y: 0 };
+
 function AIModel() {
-  // Load the glb file from the public directory
   const { scene } = useGLTF("/models/ai_robot.glb");
+  const modelRef = useRef<THREE.Group>(null);
 
-  // Return the primitive object containing the loaded scene
-  return <primitive object={scene} scale={10} />;
+  // Set up a window-wide mouse listener when the component mounts
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      // Normalize values between -1 and 1 based on the entire screen size
+      globalMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      globalMouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, []);
+
+  useFrame(() => {
+    if (!modelRef.current) return;
+
+    // Set maximum boundaries for how far the model can rotate (0.5 max rads)
+    const targetX = globalMouse.x * 1;
+    const targetY = globalMouse.y * 0.5;
+
+    // Smoothly transition to the target coordinates
+    modelRef.current.rotation.y = THREE.MathUtils.lerp(
+      modelRef.current.rotation.y,
+      targetX,
+      0.08,
+    );
+
+    modelRef.current.rotation.x = THREE.MathUtils.lerp(
+      modelRef.current.rotation.x,
+      -targetY,
+      0.08,
+    );
+  });
+
+  return (
+    <group ref={modelRef}>
+      <primitive object={scene} scale={10} />
+    </group>
+  );
 }
 
 const Model = () => {
@@ -20,27 +59,15 @@ const Model = () => {
         camera={{ position: [0, 0, 5], fov: 45 }}
         gl={{ antialias: true }}
       >
-        {/* Ambient light for general visibility */}
         <ambientLight intensity={0.7} />
-
-        {/* Directional light to cast shadows and highlights */}
         <directionalLight position={[5, 5, 5]} intensity={1.5} />
         <pointLight position={[-5, -5, -5]} intensity={0.5} />
 
-        {/* Suspense handles the loading state gracefully while the model downloads */}
         <Suspense fallback={null}>
           <Center>
             <AIModel />
           </Center>
         </Suspense>
-
-        {/* OrbitControls allows the user to rotate, zoom, and pan the model */}
-        <OrbitControls
-          enableZoom={false}
-          maxPolarAngle={Math.PI / 2} // Keeps the camera above the ground
-          minDistance={4}
-          maxDistance={5}
-        />
       </Canvas>
     </div>
   );
@@ -48,5 +75,4 @@ const Model = () => {
 
 export default Model;
 
-// Pre-load the model to prevent lag when the component mounts
 useGLTF.preload("/models/ai_robot.glb");
